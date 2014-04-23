@@ -214,7 +214,7 @@ def main():
                     generateInput(str(tau), 0.9, "dustyin", cold_sic[j])
                     model = makeOgrid(spectrum, tau)
                     if i == 0 and j == 0:
-						PutWave(gridfile, model)
+                        PutWave(gridfile, model)
                     PutItAllTogether(gridfile, spectrum[18:], tau, model)
 		whichgrid = whichgrid+1
 
