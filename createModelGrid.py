@@ -29,7 +29,7 @@ def createCSpectrum(input):
     out = np.column_stack((lam_mu, flux))
     return out
 
-def generateInput(tau, co, spectra):
+def generateInput(tau, co, spectra, cold_sic):
 	grainsize = '0.1'
 
 	Sil_Ow = '0.00'
@@ -50,8 +50,12 @@ def generateInput(tau, co, spectra):
 	else:
 		spectrum = '6'
 		dusttemp = '1331.47'
-		Sil_Ow = '1.00'
-
+        if tau < 3:
+            Sil_Ow = '1.00'
+            Sil_Oc = '0.00'
+        else:
+            Sil_Ow = str(1 - cold_sic)
+            Sil_Oc = str(cold_sic)
 
 	f = open("temp.inp", 'w')
 	f.write("""
@@ -154,7 +158,7 @@ def PutItAllTogether(file, Teff, Tau, model):
 	flux = []
 	fTot = model[:,1]
 	fInp = model[:,5]
-	file.write(Teff + '%10.6f' % Tau + '\n')
+	file.write(Teff + '%10.2f' % math.log(Tau, 10) + '\n')
 
 	for j in range(len(fTot)):
 		ratio = fTot[j]/fInp[j]
@@ -165,59 +169,53 @@ def PutItAllTogether(file, Teff, Tau, model):
 	file.write('\n')
 
 def main():
-	if os.path.isdir('CGrid') == False:
-		os.mkdir('CGrid')
-	if os.path.isdir('OGrid') == False:
-		os.mkdir('OGrid')
+    if os.path.isdir('CGrid') == False:
+        os.mkdir('CGrid')
+    if os.path.isdir('OGrid') == False:
+        os.mkdir('OGrid')
 
-	tau_min = 1e-3
-	tau_max = 50.0
-	tau = np.linspace(tau_min, tau_max, num=50, endpoint=True)
-	TauFidLog = []
-	i = 1
-	x = 0
-	while i <= len(tau):
-		# For a logarithmic grid
-		q2 = math.exp(math.log(tau_max/tau_min)/(len(tau)-1))
-		TauFidLog.append(round(tau_min*q2**(i-1.0), 5))
-		print TauFidLog[x], tau[x]
-		i = i+1
-		x = x+1
+    # Get log spaced tau values
+    tau_min = 1e-3
+    tau_max = 50.0
+    tau = np.linspace(tau_min, tau_max, num=50, endpoint=True)
+    TauFidLog = []
+    for i, value in enumerate(tau):
+	    q2 = math.exp(math.log(tau_max/tau_min)/(len(tau)-1))
+	    TauFidLog.append(round(tau_min*q2**(i-1.0), 5))
 
-	whichgrid = 1
-	while whichgrid <= 1:   # Make a seperate grid for O-rich stars and C-rich stars
-		if whichgrid == 0:
-			print "============================================================================="
-			print "============================= MAKING C GRID ================================="
-			print "============================================================================="
-			gridfile = open("CGrid.txt", "w")
-			spec_in = glob.glob('mxcom*')
-			for i, spectrum in enumerate(spec_in):   # For each input spectrum make models for
-				for j, tau in enumerate(TauFidLog):   # different tau values
-					print "TAU IS:", tau
-					np.savetxt("dustyin", createCSpectrum(spectrum))
-					generateInput(str(tau), 1.1, "dustyin")
-					model = makeCgrid(spectrum, tau)
-					if i == 0 and j == 0:
+    # Cold and warm silicate switching for the o rich grid
+    min_value = math.atan(tau_min)
+    max_value = math.atan(tau_max)
+    # The percent of cold silicates per tau value
+    cold_sic = map(lambda value: 1 - ((max_value - math.atan(value))/max_value), TauFidLog)
+    print cold_sic
+
+    whichgrid = 0
+    while whichgrid <= 1:   # Make a seperate grid for O-rich stars and C-rich stars
+        if whichgrid == 0:
+            gridfile = open("CGrid.txt", "w")
+            spec_in = glob.glob('mxcom*')
+            for i, spectrum in enumerate(spec_in):   # For each input spectrum make models for
+                for j, tau in enumerate(TauFidLog):   # different tau values
+                    print "TAU IS:", tau
+                    np.savetxt("dustyin", createCSpectrum(spectrum))
+                    generateInput(str(tau), 1.1, "dustyin", cold_sic[j])
+                    model = makeCgrid(spectrum, tau)
+                    if i == 0 and j == 0:
+                        PutWave(gridfile, model)
+                    PutItAllTogether(gridfile, spectrum[9:13], tau, model)
+        if whichgrid == 1:
+            gridfile = open("OGrid.txt", "w")
+            spec_in = (glob.glob('z0.0190_logg0_temp*'))
+            for i, spectrum in enumerate(spec_in):   # For each input spectrum make models for
+                for j, tau in enumerate(TauFidLog):   # different tau values
+                    print "TAU IS", tau
+                    np.savetxt("dustyin", createOSpectrum(spectrum))
+                    generateInput(str(tau), 0.9, "dustyin", cold_sic[j])
+                    model = makeOgrid(spectrum, tau)
+                    if i == 0 and j == 0:
 						PutWave(gridfile, model)
-					PutItAllTogether(gridfile, spectrum[9:13], tau, model)
-					#os.remove("dustyin")
-		if whichgrid == 1:
-			print "============================================================================="
-			print "============================= MAKING O GRID ================================="
-			print "============================================================================="
-			gridfile = open("OGrid.txt", "w")
-			spec_in = (glob.glob('z0.0190_logg0_temp*'))
-			for i, spectrum in enumerate(spec_in):   # For each input spectrum make models for
-				for j, tau in enumerate(TauFidLog):   # different tau values
-					print "TAU IS", tau
-					np.savetxt("dustyin", createOSpectrum(spectrum))
-					generateInput(str(tau), 0.9, "dustyin")
-					model = makeOgrid(spectrum, tau)
-					if i == 0 and j == 0:
-						PutWave(gridfile, model)
-					PutItAllTogether(gridfile, spectrum[18:], tau, model)
-					#os.remove("dustyin")
+                    PutItAllTogether(gridfile, spectrum[18:], tau, model)
 		whichgrid = whichgrid+1
 
 #	cgrid.close()
