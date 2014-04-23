@@ -1,64 +1,60 @@
 '''
 Description: Generate the grid of models for the dusty envelopes around TP-AGB stars
-
-Author: Alexa Villaume
-
-Date: 10/8/13 - 10/17/13
 '''
 
-import sys, os, commands, math, string
+import sys
+import os
+import commands
+import math
+import string
 import glob
-import numpy as np
-import scipy
 from subprocess import call
+import numpy as np
 
-def createOSpectrum(input):
+# DUSTY requires a wavelength grid in microns as input
+def create_o_spectrum(input):
     flux = np.loadtxt(input)
     wave = np.loadtxt("basel_lambda.dat")
-    # DOUBLE CHECK THIS
     lam_mu = map(lambda line: line*1e-4, wave)
     out = np.column_stack((lam_mu, flux))
     return out
 
-def createCSpectrum(input):
+def create_c_spectrum(input):
     spectrum = np.loadtxt(input)
     wave = spectrum[:,0]
     flux = spectrum[:,2]
-    # Convert the Aringer wavelength grid to microns
     lam_mu = map(lambda line: line*1e-4, wave)
     out = np.column_stack((lam_mu, flux))
     return out
 
-def generateInput(tau, co, spectra, cold_sic):
-	grainsize = '0.1'
+def generate_input(tau, co, spectra, cold_sic):
+    grainsize = '0.1'
 
-	Sil_Ow = '0.00'
-	Sil_Oc = '0.00'
-	Sil_DL = '0.00'
-	grf_DL = '0.00'
-	amC_Hn = '0.00'
-	SiC_Pg = '0.00'
-	SC 	   = '0.00'
-	SSC	   = '0.00'
-	SSW    = '0.00'
-
-	if co >= 1:
-		spectrum = '4'
-		dusttemp = '1063.35'
-		SC = '0.90'
-		SiC_Pg = '0.10'
-	else:
-		spectrum = '6'
-		dusttemp = '1331.47'
+    Sil_Ow = '0.00'
+    Sil_Oc = '0.00'
+    Sil_DL = '0.00'
+    grf_DL = '0.00'
+    amC_Hn = '0.00'
+    SiC_Pg = '0.00'
+    SC 	   = '0.00'
+    SSC	   = '0.00'
+    SSW    = '0.00'
+    if co >= 1:
+        spectrum = '4'
+        dusttemp = '1063.35'
+        SC = '0.90'
+        SiC_Pg = '0.10'
+    else:
+        spectrum = '6'
+        dusttemp = '1331.47'
         if tau < 3:
             Sil_Ow = '1.00'
             Sil_Oc = '0.00'
         else:
             Sil_Ow = str(1 - cold_sic)
             Sil_Oc = str(cold_sic)
-
-	f = open("temp.inp", 'w')
-	f.write("""
+    with open("temp.inp", "w") as f:
+	    f.write("""
   I PHYSICAL PARAMETERS
      1) External radiation:
         Spectrum = """+spectrum+"""
@@ -129,32 +125,26 @@ def generateInput(tau, co, spectra, cold_sic):
        - detailed run-time messages;                fname.m### = 0
        -------------------------------------------------------------
 
-
   The end of the input parameters listing.""")
 
-	f.close()
-
-def makeCgrid(i, j):
+def make_c_grid(temp, tau):
 	call(['./dusty.exe'])
-	call(['mv', 'temp.stb', 'CGrid/temp_'+'teff'+i[9:13]+'_'+'tau'+str(j)])
-	return np.loadtxt('CGrid/temp_'+'teff'+i[9:13]+'_'+'tau'+str(j))
+	call(['mv', 'temp.stb', 'CGrid/temp_'+'teff'+temp[9:13]+'_'+'tau'+str(tau)])
+	return np.loadtxt('CGrid/temp_'+'teff'+temp[9:13]+'_'+'tau'+str(tau))
 
-def makeOgrid(i, j):
+def make_o_grid(temp, tau):
 	call(['./dusty.exe'])
-	call(['mv', 'temp.stb', 'OGrid/temp_'+'teff'+i[18:22]+'_'+'tau'+str(j)])
-	return np.loadtxt('OGrid/temp_'+'teff'+i[18:22]+'_'+'tau'+str(j))
+	call(['mv', 'temp.stb', 'OGrid/temp_'+'teff'+temp[18:22]+'_'+'tau'+str(tau)])
+	return np.loadtxt('OGrid/temp_'+'teff'+temp[18:22]+'_'+'tau'+str(tau))
 
 # Parse the DUSTY output into a single file
-def PutWave(file, model):
-    wave = model[:,0]
-    file.write( str(len(wave)) + '\n')
-    for i in range(len(wave)):
-        # Convert from microns to angstroms
-        wave[i] = 1e4*wave[i]
-        file.write('%10.2e' % wave[i])
+def put_wave(file, model):
+    file.write( str(len(model[:,0])) + '\n')
+    wave = map(lambda value: value*1e4, model[:,0])
+    file.write(''.join(['%10.2e' % value for value in  wave]))
     file.write('\n')
 
-def PutItAllTogether(file, Teff, Tau, model):
+def put_all_together(file, Teff, Tau, model):
 	flux = []
 	fTot = model[:,1]
 	fInp = model[:,5]
@@ -179,47 +169,43 @@ def main():
     tau_max = 50.0
     tau = np.linspace(tau_min, tau_max, num=50, endpoint=True)
     TauFidLog = []
-    for i, value in enumerate(tau):
-	    q2 = math.exp(math.log(tau_max/tau_min)/(len(tau)-1))
-	    TauFidLog.append(round(tau_min*q2**(i-1.0), 5))
+    i = 1
+    while i <= len(tau):
+        q2 = math.exp(math.log(tau_max/tau_min)/(len(tau)-1))
+        TauFidLog.append(round(tau_min*q2**(i-1.0), 5))
+        i += 1
 
     # Cold and warm silicate switching for the o rich grid
     min_value = math.atan(tau_min)
     max_value = math.atan(tau_max)
     # The percent of cold silicates per tau value
     cold_sic = map(lambda value: 1 - ((max_value - math.atan(value))/max_value), TauFidLog)
-    print cold_sic
 
     whichgrid = 0
-    while whichgrid <= 1:   # Make a seperate grid for O-rich stars and C-rich stars
+    while whichgrid <= 1:
         if whichgrid == 0:
-            gridfile = open("CGrid.txt", "w")
-            spec_in = glob.glob('mxcom*')
-            for i, spectrum in enumerate(spec_in):   # For each input spectrum make models for
-                for j, tau in enumerate(TauFidLog):   # different tau values
-                    print "TAU IS:", tau
-                    np.savetxt("dustyin", createCSpectrum(spectrum))
-                    generateInput(str(tau), 1.1, "dustyin", cold_sic[j])
-                    model = makeCgrid(spectrum, tau)
-                    if i == 0 and j == 0:
-                        PutWave(gridfile, model)
-                    PutItAllTogether(gridfile, spectrum[9:13], tau, model)
+            with open("CGrid.txt", "w") as gridfile:
+                spec_in = glob.glob('mxcom*')
+                for i, spectrum in enumerate(spec_in):
+                    for j, tau in enumerate(TauFidLog):
+                        np.savetxt("dustyin", create_c_spectrum(spectrum))
+                        generate_input(str(tau), 1.1, "dustyin", cold_sic[j])
+                        model = make_c_grid(spectrum, tau)
+                        if i == 0 and j == 0:
+                            put_wave(gridfile, model)
+                        put_all_together(gridfile, spectrum[9:13], tau, model)
         if whichgrid == 1:
-            gridfile = open("OGrid.txt", "w")
-            spec_in = (glob.glob('z0.0190_logg0_temp*'))
-            for i, spectrum in enumerate(spec_in):   # For each input spectrum make models for
-                for j, tau in enumerate(TauFidLog):   # different tau values
-                    print "TAU IS", tau
-                    np.savetxt("dustyin", createOSpectrum(spectrum))
-                    generateInput(str(tau), 0.9, "dustyin", cold_sic[j])
-                    model = makeOgrid(spectrum, tau)
-                    if i == 0 and j == 0:
-                        PutWave(gridfile, model)
-                    PutItAllTogether(gridfile, spectrum[18:], tau, model)
-		whichgrid = whichgrid+1
-
-#	cgrid.close()
-#	ogrid.close()
+            with open("OGrid.txt", "w") as gridfile:
+                spec_in = (glob.glob('z0.0190_logg0_temp*'))
+                for i, spectrum in enumerate(spec_in):
+                    for j, tau in enumerate(TauFidLog):
+                        np.savetxt("dustyin", create_o_spectrum(spectrum))
+                        generate_input(str(tau), 0.9, "dustyin", cold_sic[j])
+                        model = make_o_grid(spectrum, tau)
+                        if i == 0 and j == 0:
+                            put_wave(gridfile, model)
+                        put_all_together(gridfile, spectrum[18:], tau, model)
+		whichgrid += 1
 
 if __name__ == "__main__":
 	main()
