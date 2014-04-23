@@ -181,13 +181,14 @@ def main():
     # The percent of cold silicates per tau value
     cold_sic = map(lambda value: 1 - ((max_value - math.atan(value))/max_value), TauFidLog)
 
-    whichgrid = 0
+    whichgrid = 1
     while whichgrid <= 1:
         if whichgrid == 0:
             with open("CGrid.txt", "w") as gridfile:
-                spec_in = glob.glob('mxcom*')
+                spec_in = glob.glob('mxcom*2400*')
                 for i, spectrum in enumerate(spec_in):
                     for j, tau in enumerate(TauFidLog):
+                        print "Tau is", tau
                         np.savetxt("dustyin", create_c_spectrum(spectrum))
                         generate_input(str(tau), 1.1, "dustyin", cold_sic[j])
                         model = make_c_grid(spectrum, tau)
@@ -196,16 +197,17 @@ def main():
                         put_all_together(gridfile, spectrum[9:13], tau, model)
         if whichgrid == 1:
             with open("OGrid.txt", "w") as gridfile:
-                spec_in = (glob.glob('z0.0190_logg0_temp*'))
+                spec_in = (glob.glob('z0.0190_logg0_temp2000*'))
                 for i, spectrum in enumerate(spec_in):
                     for j, tau in enumerate(TauFidLog):
+                        print "Tau is", tau
                         np.savetxt("dustyin", create_o_spectrum(spectrum))
                         generate_input(str(tau), 0.9, "dustyin", cold_sic[j])
                         model = make_o_grid(spectrum, tau)
                         if i == 0 and j == 0:
                             put_wave(gridfile, model)
                         put_all_together(gridfile, spectrum[18:], tau, model)
-		whichgrid += 1
+	whichgrid += 1
 
 if __name__ == "__main__":
 	main()
