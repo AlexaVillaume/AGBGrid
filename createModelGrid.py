@@ -46,7 +46,9 @@ def generate_input(tau, co, spectra, cold_sic):
         SiC_Pg = '0.10'
     else:
         spectrum = '6'
-        dusttemp = '1331.47'
+        # Test the impact of lower Teff@Rin on Martini plots
+        dusttemp = '1000'
+        #dusttemp = '1331.47'
         if tau < 3:
             Sil_Ow = '1.00'
             Sil_Oc = '0.00'
@@ -181,11 +183,14 @@ def main():
     # The percent of cold silicates per tau value
     cold_sic = map(lambda value: 1 - ((max_value - math.atan(value))/max_value), TauFidLog)
 
+    for i in range(len(TauFidLog)):
+            print TauFidLog[i], cold_sic[i]
+
     whichgrid = 1
     while whichgrid <= 1:
         if whichgrid == 0:
             with open("CGrid.txt", "w") as gridfile:
-                spec_in = glob.glob('mxcom*2400*')
+                spec_in = glob.glob('mxcom*')
                 for i, spectrum in enumerate(spec_in):
                     for j, tau in enumerate(TauFidLog):
                         print "Tau is", tau
@@ -197,7 +202,7 @@ def main():
                         put_all_together(gridfile, spectrum[9:13], tau, model)
         if whichgrid == 1:
             with open("OGrid.txt", "w") as gridfile:
-                spec_in = (glob.glob('z0.0190_logg0_temp2000*'))
+                spec_in = (glob.glob('z0.0190_logg0_temp*'))
                 for i, spectrum in enumerate(spec_in):
                     for j, tau in enumerate(TauFidLog):
                         print "Tau is", tau
@@ -207,7 +212,7 @@ def main():
                         if i == 0 and j == 0:
                             put_wave(gridfile, model)
                         put_all_together(gridfile, spectrum[18:], tau, model)
-	whichgrid += 1
+	whichgrid += 2
 
 if __name__ == "__main__":
 	main()
