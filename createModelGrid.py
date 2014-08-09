@@ -47,7 +47,7 @@ def generate_input(tau, co, spectra, cold_sic):
     else:
         spectrum = '6'
         # Test the impact of lower Teff@Rin on Martini plots
-        dusttemp = '1000'
+        dusttemp = '700'
         #dusttemp = '1331.47'
         if tau < 3:
             Sil_Ow = '1.00'
