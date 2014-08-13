@@ -11,10 +11,16 @@ import glob
 from subprocess import call
 import numpy as np
 
-# DUSTY requires a wavelength grid in microns as input
+
+"""
+Using Aringer input spectra for the C-rich grid and
+Basel input spectra for the O-rich grid.
+
+DUSTY requires a wavelength grid in microns as input.
+"""
 def create_o_spectrum(input):
     flux = np.loadtxt(input)
-    wave = np.loadtxt("basel_lambda.dat")
+    wave = np.loadtxt("basel.lambda")
     lam_mu = map(lambda line: line*1e-4, wave)
     out = np.column_stack((lam_mu, flux))
     return out
@@ -41,14 +47,12 @@ def generate_input(tau, co, spectra, cold_sic):
     SSW    = '0.00'
     if co >= 1:
         spectrum = '4'
-        dusttemp = '1063.35'
+        dusttemp = '1100'
         SC = '0.90'
         SiC_Pg = '0.10'
     else:
         spectrum = '6'
-        # Test the impact of lower Teff@Rin on Martini plots
         dusttemp = '700'
-        #dusttemp = '1331.47'
         if tau < 3:
             Sil_Ow = '1.00'
             Sil_Oc = '0.00'
@@ -177,7 +181,10 @@ def main():
         TauFidLog.append(round(tau_min*q2**(i-1.0), 5))
         i += 1
 
-    # Cold and warm silicate switching for the o rich grid
+    """
+    Cold and warm silicate switching for the O-rich grid.
+    For higher values of tau want more cold silicate dust.
+    """
     min_value = math.atan(tau_min)
     max_value = math.atan(tau_max)
     # The percent of cold silicates per tau value
@@ -186,7 +193,7 @@ def main():
     for i in range(len(TauFidLog)):
             print TauFidLog[i], cold_sic[i]
 
-    whichgrid = 1
+    whichgrid = 0
     while whichgrid <= 1:
         if whichgrid == 0:
             with open("CGrid.txt", "w") as gridfile:
@@ -212,7 +219,7 @@ def main():
                         if i == 0 and j == 0:
                             put_wave(gridfile, model)
                         put_all_together(gridfile, spectrum[18:], tau, model)
-	whichgrid += 2
+	whichgrid+=1
 
 if __name__ == "__main__":
 	main()
