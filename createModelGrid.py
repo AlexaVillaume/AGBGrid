@@ -193,7 +193,7 @@ def main():
     for i in range(len(TauFidLog)):
             print TauFidLog[i], cold_sic[i]
 
-    whichgrid = 0
+    whichgrid = 1
     while whichgrid <= 1:
         if whichgrid == 0:
             with open("CGrid.txt", "w") as gridfile:
