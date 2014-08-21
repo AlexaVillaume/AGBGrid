@@ -3,7 +3,7 @@ Alexa Villaume
 
 ####PURPOSE:
 
-#### Rundown on files:
+#### FILE RUNDOWN
 * **createModelGrid.py** -
 * **userpar.inc/lambda_grid.dat** - Internal DUSTY files to control the wavelength grid. Used the BaSeL wavelength grid as input for DUSTY. 
 * **CGrid.txt/OGrid.txt** - The grids of circumstellar dust models to be included in FSPS. The first line is the number of wavelength points in the
